@@ -68,6 +68,13 @@
     <label>Begins at</label>
     <input type=date name="begin_date" id="begin_date" value="2017-01-01" />
     <input type=time name="begin_time" id="begin_time" value="00:00"    />
+    <label for="utc_offset">UTC offset</label>
+    <input
+    type="text"
+    id="utc_offset"
+    value="+00:00"
+    size="7"
+/>
   </div> <!-- columns 5-10 -->
   </div> <!-- row -->
 
@@ -124,22 +131,39 @@
   // stash them in hidden fields.) 
   function calc_times(control) {
     var km = control.find("input[name='km']").val();
+    var brevet = $("#brevet_dist_km").val();
+    var begin_date = $("#begin_date").val();
+    var begin_time = $("#begin_time").val();
     var open_time_field = control.find("input[name='open']");
     var close_time_field = control.find("input[name='close']");
     
-    $.getJSON(TIME_CALC_URL, { km: km }, 
+    $.getJSON(TIME_CALC_URL, {
+  km: km,
+  brevet_dist_km: brevet,
+  begin_date: begin_date,
+  begin_time: begin_time,
+  utc_offset: $("#utc_offset").val()
+},
       // response handler
       function(data) {
          var times = data.result;
          console.log("Got a response: " +  times);
          console.log("Response.open = " + times.open);
-         open_time_field.val( moment(times.open).format("ddd M/D H:mm"));
-         close_time_field.val( moment(times.close).format("ddd M/D H:mm"));
+         open_time_field.val(moment.utc(times.open).format("ddd M/D H:mm [UTC]"));
+         close_time_field.val(moment.utc(times.close).format("ddd M/D H:mm [UTC]"));
        } // end of handler function
      );// End of getJSON
     }
 
   $(document).ready(function(){
+    $("#brevet_dist_km, #begin_date, #begin_time").change(
+  function() {
+    $(".control").each(function() {
+      if ($(this).find("input[name='km']").val() !== "") {
+        calc_times($(this));
+      }
+    });
+  });
    // Do the following when the page is finished loading
 
       $('input[name="miles"]').change(
@@ -167,7 +191,7 @@
           });
 
      });   // end of what we do on document ready
-
+    
 </script>
 
 </div>

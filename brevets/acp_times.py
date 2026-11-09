@@ -15,6 +15,24 @@ import arrow
 #  javadoc comments.
 #
 
+DISTANCES = (200, 300, 400, 600, 1000)
+
+SEGMENTS = (
+    (200, 34, 15),
+    (200, 32, 15),
+    (200, 30, 15),
+    (400, 28, 11.428),
+)
+
+FINISH = {
+   200: 13.5,
+    300: 20,
+    400: 27,
+    600: 40,
+    1000: 75,
+}
+
+
 
 def open_time(control_dist_km, brevet_dist_km, brevet_start_time):
     """
@@ -29,7 +47,31 @@ def open_time(control_dist_km, brevet_dist_km, brevet_start_time):
        An ISO 8601 format date string indicating the control open time.
        This will be in the same time zone as the brevet start time.
     """
-    return arrow.now().isoformat()
+
+    distance = float(control_dist_km)
+    brevet = float(brevet_dist_km)
+
+    if brevet not in DISTANCES:
+        raise ValueError(
+            "Choose a 200, 300, 400, 600, or 1000 km brevet"
+        )
+
+    start = arrow.get(brevet_start_time)
+    remaining = min(distance, brevet)
+    hours = 0
+
+    for length, maximum, minimum in SEGMENTS:
+        portion = min(remaining, length)
+        hours += portion / maximum
+        remaining -= portion
+
+        if remaining == 0:
+            break
+
+    minutes = int(round(hours * 60, 8) + 0.5)
+    control = start.shift(minutes=minutes)
+
+    return control.isoformat()
 
 
 def close_time(control_dist_km, brevet_dist_km, brevet_start_time):
@@ -45,4 +87,35 @@ def close_time(control_dist_km, brevet_dist_km, brevet_start_time):
        An ISO 8601 format date string indicating the control close time.
        This will be in the same time zone as the brevet start time.
     """
-    return arrow.now().isoformat()
+    distance = float(control_dist_km)
+    brevet = float(brevet_dist_km)
+    if brevet not in DISTANCES:
+        raise ValueError(
+            "Choose a 200, 300, 400, 600, or 1000 km brevet"
+        )
+    
+    start = arrow.get(brevet_start_time)
+    distance = min(distance, brevet)
+
+    if distance == brevet:
+        hours = FINISH[brevet]
+
+    elif distance < 60:
+        hours = 1 + distance / 20
+
+    else:
+        remaining = distance
+        hours = 0
+
+        for length, maximum, minimum in SEGMENTS:
+            portion = min(remaining, length)
+            hours += portion / minimum
+            remaining -= portion
+
+            if remaining == 0:
+                break
+
+    minutes = int(round(hours * 60, 8) + 0.5)
+    control = start.shift(minutes=minutes)
+
+    return control.isoformat()

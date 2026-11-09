@@ -4,8 +4,10 @@ Replacement for RUSA ACP brevet time calculator
 
 """
 
+from tracemalloc import start
+
 import flask
-from flask import request
+from flask import request, Flask, jsonify, render_template, request
 import arrow  # Replacement for datetime, based on moment.js
 import acp_times  # Brevet time calculations
 import config
@@ -37,7 +39,6 @@ def page_not_found(error):
     flask.session['linkback'] = flask.url_for("index")
     return flask.render_template('404.html'), 404
 
-
 ###############
 #
 # AJAX request handlers
@@ -51,15 +52,24 @@ def _calc_times():
     described at https://rusa.org/octime_alg.html.
     Expects one URL-encoded argument, the number of miles.
     """
-    app.logger.debug("Got a JSON request")
-    km = request.args.get('km', 999, type=float)
-    app.logger.debug("km={}".format(km))
-    app.logger.debug("request.args: {}".format(request.args))
-    # FIXME: These probably aren't the right open and close times
-    # and brevets may be longer than 200km
-    open_time = acp_times.open_time(km, 200, arrow.now().isoformat)
-    close_time = acp_times.close_time(km, 200, arrow.now().isoformat)
-    result = {"open": open_time, "close": close_time}
+    km = request.args.get("km", type=float)
+    brevet = request.args.get("brevet_dist_km", type=float)
+    begin_date = request.args.get("begin_date", "")
+    begin_time = request.args.get("begin_time", "")
+    offset = request.args.get("utc_offset", "+00:00")
+
+    if km is None or brevet is None:
+        return "Enter valid distances", 400
+
+    start = arrow.get(f"{begin_date}T{begin_time}{offset}").isoformat()
+
+    opening = acp_times.open_time(km, brevet, start)
+    closing = acp_times.close_time(km, brevet, start)
+    result = {
+        "open": opening,
+        "close": closing,
+    }
+
     return flask.jsonify(result=result)
 
 
